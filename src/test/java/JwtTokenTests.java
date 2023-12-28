@@ -3,7 +3,6 @@ import io.restassured.filter.log.RequestLoggingFilter;
 import io.restassured.filter.log.ResponseLoggingFilter;
 import io.restassured.http.ContentType;
 import io.restassured.path.json.JsonPath;
-import io.restassured.response.Response;
 import io.restassured.specification.RequestSpecification;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.http.HttpStatus;
@@ -21,37 +20,36 @@ import static org.assertj.core.api.Assertions.assertThat;
  * User: David Smiles
  * Date: 14/10/2019
  * Time: 15:31 PM
- *
- *  Test harness for testing the generation and validation of JWT tokens (CO-7520 gen and CO-7518 val)
+ * Simple test class for testing the generation and validation of JWT tokens (tickets CO-7520 and CO-7518)
  */
 
-public class tokenTests {
+public class JwtTokenTests {
 
     private static RequestSpecification requestSpec;
-
-    private static final String CONTEGO_ORGANISATION_UID = "b43e8794-906c-4ea1-bbf7-98a14da8ea44";
-
-    private static final String CONTEGO_ACCESS_KEY = "<INSERT ACCESS KEY>";
-
-    private static final String BASE_URI = "https://api-qa.northrow.com";
-
-    private static final String SVC_URL = "/authorise";
-
-    private static final String EXPIRED_TOKEN = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJkYXZpZHNtaWxlcyIsIm9yZyI6ImI0M2U4Nzk0LTkwNmMtNGVhMS1iYmY3LTk4YTE0ZGE4ZWE0NCIsInJvbGVzIjpbIkFETUlOIl0sImV4cCI6MTU3MTA3MjE0MywiaWF0IjoxNTcxMDcwMzQzfQ.REgcF6EiVLlsHjzAWHH9uJolWCx6I4cMqHSfGO-xkjw";
-
+    private static String organisationUid;
+    private static String accessKey;
+    private static final String BASE_URI = "https://localhost:8080";
+    private static final String EXPIRED_ACCESS_TOKEN = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJkYXZpZHNtaWxlcyIsIm9yZyI6ImI0M2U4Nzk0LTkwNmMtNGVhMS1iYmY3LTk4YTE0ZGE4ZWE0NCIsInJvbGVzIjpbIkFETUlOIl0sImV4cCI6MTU3MTA3MjE0MywiaWF0IjoxNTcxMDcwMzQzfQ.REgcF6EiVLlsHjzAWHH9uJolWCx6I4cMqHSfGO-xkjw";
     public static final String ORGANISATION_UID_MUST_NOT_BE_BLANK = "'organisation_uid': must not be blank.";
-
     public static final String ACCESS_KEY_MUST_NOT_BE_BLANK = "'access_key': must not be blank.";
-
     private static final String INVALID_ORGANISATION_UID_OR_ACCESS_KEY = "Invalid organisation_uid or access_key";
-
+    public static final String RESOURCE_NOT_FOUND = "Resource not found";
+    public static final String ACCESS_TOKEN_IS_MISSING = "Access token is missing";
+    public static final String ACCESS_TOKEN_IS_INVALID = "Access token is invalid";
+    public static final String ACCESS_TOKEN_EXPIRED = "Access token expired";
 
     @BeforeClass
     public static void setup()
     {
-        // Create standard request for use across tests
-        // log request and response for better debugging.
-        // You can also only log if a requests fails.
+        organisationUid = System.getenv("ORGANISATION_UID");
+        if (organisationUid == null) {
+            throw new IllegalArgumentException("Organisation UID has not been defined");
+        }
+
+        accessKey = System.getenv("ACCESS_KEY");
+        if (accessKey == null) {
+            throw new IllegalArgumentException("Access key has not been defined");
+        }
 
         requestSpec = new RequestSpecBuilder()
                 .setContentType(ContentType.JSON)
@@ -62,10 +60,10 @@ public class tokenTests {
     }
 
     @Test
-    public void givenValidCredentials_whenPosted_thenCreateToken()
+    public void givenValidCredentials_whenPosted_thenSuccess()
     {
         // Given
-        Map<String, String> params = createJwtBody(CONTEGO_ORGANISATION_UID, CONTEGO_ACCESS_KEY);
+        Map<String, String> params = createJwtBody(organisationUid, accessKey);
 
         // When
         String jwtToken = given()
@@ -99,22 +97,26 @@ public class tokenTests {
 
         // Assert on the expected payload values
         assertThat(payloadJson.getString("sub")).isEqualTo("davidsmiles");
-        assertThat(payloadJson.getString("org")).isEqualTo(CONTEGO_ORGANISATION_UID);
+        assertThat(payloadJson.getString("org")).isEqualTo(organisationUid);
         assertThat(payloadJson.getString("roles")).isEqualTo("[ADMIN]");
-        // Dates exp and iat change need to mask these - do something with JSON
 
-        // Assert on the expected signature values
-        // Cannot test signature right now
+        // Assert on the expected Unix timestamps "exp" and "iat"
+        // "exp" - Expires - The Unix timestamp of when the token expires
+        // "iat" - Issued At - The Unix timestamp of when the token was issued
+        // TODO skipped for now - should mask the values
+
+        // Assert on the Signature Verification (HMACSHA256)
+        // TODO Skipped for now - should verify this
     }
 
     @Test
-    public void givenBlankOrgUid_whenPosted_thenFail()
+    public void givenBlankOrgUid_whenPosted_thenBadRequest()
     {
         // Given
-        Map<String, String> params = createJwtBody("", CONTEGO_ACCESS_KEY);
+        Map<String, String> params = createJwtBody("", accessKey);
 
         // When
-        String message = given()
+        String error = given()
                 .spec(requestSpec)
                 .body(params)
                 .when()
@@ -127,17 +129,17 @@ public class tokenTests {
                 .getString("message");
 
         // Then
-        assertThat(message).isEqualTo(ORGANISATION_UID_MUST_NOT_BE_BLANK);
+        assertThat(error).isEqualTo(ORGANISATION_UID_MUST_NOT_BE_BLANK);
     }
 
     @Test
-    public void givenBlankAccessKey_whenPosted_thenFail()
+    public void givenBlankAccessKey_whenPosted_thenBadRequest()
     {
         // Given
-        Map<String, String> params = createJwtBody(CONTEGO_ORGANISATION_UID, "");
+        Map<String, String> params = createJwtBody(organisationUid, "");
 
         // When
-        String message = given()
+        String error = given()
                 .spec(requestSpec)
                 .body(params)
                 .when()
@@ -150,17 +152,17 @@ public class tokenTests {
                 .getString("message");
 
         // Then
-        assertThat(message).isEqualTo(ACCESS_KEY_MUST_NOT_BE_BLANK);
+        assertThat(error).isEqualTo(ACCESS_KEY_MUST_NOT_BE_BLANK);
     }
 
     @Test
-    public void givenInvalidOrgUid_whenPosted_thenFail()
+    public void givenInvalidOrgUid_whenPosted_thenUnauthorized()
     {
         // Given
-        Map<String, String> params = createJwtBody("666", CONTEGO_ACCESS_KEY);
+        Map<String, String> params = createJwtBody("666", accessKey);
 
         // When
-        String message = given()
+        String error = given()
                 .spec(requestSpec)
                 .body(params)
                 .when()
@@ -173,17 +175,17 @@ public class tokenTests {
                 .getString("message");
 
         // Then
-        assertThat(message).isEqualTo(INVALID_ORGANISATION_UID_OR_ACCESS_KEY);
+        assertThat(error).isEqualTo(INVALID_ORGANISATION_UID_OR_ACCESS_KEY);
     }
 
     @Test
-    public void givenInvalidAccessKey_whenPosted_thenFail()
+    public void givenInvalidAccessKey_whenPosted_thenUnauthorized()
     {
         // Given
-        Map<String, String> params = createJwtBody(CONTEGO_ORGANISATION_UID, "666");
+        Map<String, String> params = createJwtBody(organisationUid, "666");
 
         // When
-        String message = given()
+        String error = given()
                 .spec(requestSpec)
                 .body(params)
                 .when()
@@ -196,16 +198,16 @@ public class tokenTests {
                 .getString("message");
 
         // Then
-        assertThat(message).isEqualTo(INVALID_ORGANISATION_UID_OR_ACCESS_KEY);
+        assertThat(error).isEqualTo(INVALID_ORGANISATION_UID_OR_ACCESS_KEY);
     }
 
     @Test
-    public void givenValidToken_whenGetResource_thenAllow()
+    public void givenValidToken_whenGetInvalidResource_thenNotFound()
     {
         // Given
-        Map<String, String> params = createJwtBody(CONTEGO_ORGANISATION_UID, CONTEGO_ACCESS_KEY);
+        Map<String, String> params = createJwtBody(organisationUid, accessKey);
 
-        // When
+        // Request a valid access token
         String jwtToken = given()
                 .spec(requestSpec)
                 .body(params)
@@ -218,10 +220,8 @@ public class tokenTests {
                 .jsonPath()
                 .getString("token");
 
-        // Attempt to access non-existent url. If token valid, then will get 404 (not found),
-        // otherwise it will get 403 (access denied)
-
-        JsonPath jPath = given()
+        // When - Use valid token to attempt access to non-existent resource
+        String error = given()
                 .spec(requestSpec)
                 .header("Authorization", "Bearer " + jwtToken )
                 .when()
@@ -230,93 +230,63 @@ public class tokenTests {
                 .assertThat()
                 .statusCode(HttpStatus.SC_NOT_FOUND)
                 .extract()
-                .jsonPath();
+                .jsonPath()
+                .getString("message");
 
         // Then
-        assertThat(jPath.getString("status")).isEqualTo("404");
-        assertThat(jPath.getString("error")).isEqualTo("Not Found");
-        assertThat(jPath.getString("message")).isEqualTo("No message available");
-        assertThat(jPath.getString("path")).isEqualTo("/helloQA");
+        assertThat(error).isEqualTo(RESOURCE_NOT_FOUND);
     }
 
     @Test
-    public void givenExpiredToken_whenGetResource_thenDeny()
-    {
-        // Given
-
-        // When - Request a resource supplying an expired JWT token - expect access denied
-        JsonPath jPath = given()
-                .spec(requestSpec)
-                .header("Authorization", "Bearer " + EXPIRED_TOKEN )
-                .when()
-                .get("/helloQA")
-                .then()
-                .assertThat()
-                .statusCode(HttpStatus.SC_FORBIDDEN)
-                .extract()
-                .jsonPath();
-
-        // Then
-        assertThat(jPath.getString("status")).isEqualTo("403");
-        assertThat(jPath.getString("error")).isEqualTo("Forbidden");
-        assertThat(jPath.getString("message")).isEqualTo("Access Denied");
-        assertThat(jPath.getString("path")).isEqualTo("/helloQA");
-    }
-
-    @Test
-    public void givenNoToken_whenGetResource_thenDeny()
+    public void givenNoToken_whenGetResource_thenUnauthorized()
     {
         // Given
 
         // When - Given Authorization header with no token
-        JsonPath jPath = given()
+        String error = given()
                 .spec(requestSpec)
                 .header("Authorization", "Bearer ")
                 .when()
                 .get("/helloQA")
                 .then()
                 .assertThat()
-                .statusCode(HttpStatus.SC_FORBIDDEN)
+                .statusCode(HttpStatus.SC_UNAUTHORIZED)
                 .extract()
-                .jsonPath();
+                .jsonPath()
+                .getString("message");
 
         // Then
-        assertThat(jPath.getString("status")).isEqualTo("403");
-        assertThat(jPath.getString("error")).isEqualTo("Forbidden");
-        assertThat(jPath.getString("message")).isEqualTo("Access Denied");
-        assertThat(jPath.getString("path")).isEqualTo("/helloQA");
+        assertThat(error).isEqualTo(ACCESS_TOKEN_IS_MISSING);
     }
 
     @Test
-    public void givenNoAuthorizationHeader_whenGetResource_thenDeny()
+    public void givenNoAuthorizationHeader_whenGetResource_thenUnauthorized()
     {
         // Given
 
-        // When - No Authorization header given
-        JsonPath jPath = given()
+        // When - No Authorization header
+        String error = given()
                 .spec(requestSpec)
                 .when()
                 .get("/helloQA")
                 .then()
                 .assertThat()
-                .statusCode(HttpStatus.SC_FORBIDDEN)
+                .statusCode(HttpStatus.SC_UNAUTHORIZED)
                 .extract()
-                .jsonPath();
+                .jsonPath()
+                .getString("message");
 
         // Then
-        assertThat(jPath.getString("status")).isEqualTo("403");
-        assertThat(jPath.getString("error")).isEqualTo("Forbidden");
-        assertThat(jPath.getString("message")).isEqualTo("Access Denied");
-        assertThat(jPath.getString("path")).isEqualTo("/helloQA");
+        assertThat(error).isEqualTo(ACCESS_TOKEN_IS_MISSING);
     }
 
     @Test
-    public void givenHackedToken_whenGetResource_thenDeny()
+    public void givenHackedToken_whenGetResource_thenUnauthorized()
     {
         // Given
-        Map<String, String> params = createJwtBody(CONTEGO_ORGANISATION_UID, CONTEGO_ACCESS_KEY);
+        Map<String, String> params = createJwtBody(organisationUid, accessKey);
 
-        // When - Given a hacked decoded/hacked/re-encoded token
+        // Request a valid access token
         String jwtToken = given()
                 .spec(requestSpec)
                 .body(params)
@@ -344,31 +314,50 @@ public class tokenTests {
         // Rebuild the JWT token with new username
         String newToken = encodedTokens[0] + "." + encodedPayload + "." + encodedTokens[2];
 
-        // Attempt to access secured resourced, expect HTTP 403 (access denied)
-        JsonPath jPath = given()
+        // When - Use hacked token to attempt access to non-existent resource
+        String error = given()
                 .spec(requestSpec)
                 .header("Authorization", "Bearer " + newToken )
                 .when()
                 .get("/helloQA")
                 .then()
                 .assertThat()
-                .statusCode(HttpStatus.SC_FORBIDDEN)
+                .statusCode(HttpStatus.SC_UNAUTHORIZED)
                 .extract()
-                .jsonPath();
+                .jsonPath()
+                .getString("message");
 
         // Then
-        assertThat(jPath.getString("status")).isEqualTo("403");
-        assertThat(jPath.getString("error")).isEqualTo("Forbidden");
-        assertThat(jPath.getString("message")).isEqualTo("Access Denied");
-        assertThat(jPath.getString("path")).isEqualTo("/helloQA");
+        assertThat(error).isEqualTo(ACCESS_TOKEN_IS_INVALID);
     }
 
+    @Test
+    public void givenExpiredToken_whenGetResource_thenUnauthorized()
+    {
+        // Given
+
+        // When - Request a resource supplying an expired JWT token - expect access denied
+        String error = given()
+                .spec(requestSpec)
+                .header("Authorization", "Bearer " + EXPIRED_ACCESS_TOKEN)
+                .when()
+                .get("/helloQA")
+                .then()
+                .assertThat()
+                .statusCode(HttpStatus.SC_UNAUTHORIZED)
+                .extract()
+                .jsonPath()
+                .getString("message");
+
+        // Then
+        assertThat(error).isEqualTo(ACCESS_TOKEN_EXPIRED);
+    }
 
     /**
      * Creates a new map of key-value pairs representing the JWT token
      *
-     * @param organisation_uid  the UID for the organisation
-     * @param access_key  the acccess key associated with a user account
+     * @param organisation_uid the UID for the organisation
+     * @param access_key the access key associated with a user account
      * @return a map of key-value pairs
      */
     private Map<String, String> createJwtBody(String organisation_uid, String access_key) {
@@ -378,39 +367,23 @@ public class tokenTests {
         return params;
     }
 
-
     /**
-     * Request a new JWT token from the server
-     *
-     * @param params - the map of key value pairs representing the
-     *                 user token request
-     * @return the HTTP response
+     * Request a new JWT access token from the server
+     * @param params the map of key value pairs representing the user token
+     * @return the JWT access token
      */
-    private Response requestJwtToken(Map<String, String> params)
+    private String requestJwtToken(Map<String, String> params)
     {
         return given()
                 .spec(requestSpec)
                 .body(params)
                 .when()
                 .post("/authorise")
-                .thenReturn();
-    }
-
-    /**
-     * Request a secured dummy resource on the server. Must supply the
-     * JWT token in the Authorization header.
-     *
-     * @param jwtToken the JWT Authorization token
-     * @return the HTTP response
-     */
-
-    private Response getResource(String jwtToken)
-    {
-        return given()
-                .header("Authorization", "Bearer " + jwtToken )
-                .spec(requestSpec)
-                .when()
-                .get("/helloQA")
-                .thenReturn();
+                .then()
+                .assertThat()
+                .statusCode(HttpStatus.SC_OK)
+                .extract()
+                .jsonPath()
+                .getString("token");
     }
 }
