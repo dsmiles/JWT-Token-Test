@@ -48,7 +48,7 @@ In order to run the tests you must define the following environment variables ei
 | Environment Variable | Description                                           |
 |----------------------|-------------------------------------------------------|
 | ORGANISATION_UID     | Your organisation uid from the [REDACTED] application |
-| ACCESS_KEY           | Your access key from the [REDACATED] application      |
+| ACCESS_KEY           | Your access key from the [REDACTED] application       |
 
 To obtain the above values you must log into your account and access your profile settings on the [REDACTED] application.
 
