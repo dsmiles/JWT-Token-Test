@@ -30,13 +30,13 @@ public class JwtTokenTests {
     private static String accessKey;
     private static final String BASE_URI = "https://localhost:8080";
     private static final String EXPIRED_ACCESS_TOKEN = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJkYXZpZHNtaWxlcyIsIm9yZyI6ImI0M2U4Nzk0LTkwNmMtNGVhMS1iYmY3LTk4YTE0ZGE4ZWE0NCIsInJvbGVzIjpbIkFETUlOIl0sImV4cCI6MTU3MTA3MjE0MywiaWF0IjoxNTcxMDcwMzQzfQ.REgcF6EiVLlsHjzAWHH9uJolWCx6I4cMqHSfGO-xkjw";
-    public static final String ORGANISATION_UID_MUST_NOT_BE_BLANK = "'organisation_uid': must not be blank.";
-    public static final String ACCESS_KEY_MUST_NOT_BE_BLANK = "'access_key': must not be blank.";
+    private static final String ORGANISATION_UID_MUST_NOT_BE_BLANK = "'organisation_uid': must not be blank.";
+    private static final String ACCESS_KEY_MUST_NOT_BE_BLANK = "'access_key': must not be blank.";
     private static final String INVALID_ORGANISATION_UID_OR_ACCESS_KEY = "Invalid organisation_uid or access_key";
-    public static final String RESOURCE_NOT_FOUND = "Resource not found";
-    public static final String ACCESS_TOKEN_IS_MISSING = "Access token is missing";
-    public static final String ACCESS_TOKEN_IS_INVALID = "Access token is invalid";
-    public static final String ACCESS_TOKEN_EXPIRED = "Access token expired";
+    private static final String RESOURCE_NOT_FOUND = "Resource not found";
+    private static final String ACCESS_TOKEN_IS_MISSING = "Access token is missing";
+    private static final String ACCESS_TOKEN_IS_INVALID = "Access token is invalid";
+    private static final String ACCESS_TOKEN_EXPIRED = "Access token expired";
 
     @BeforeClass
     public static void setup()
