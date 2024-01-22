@@ -1,8 +1,10 @@
 # Introduction
 
-This repo contains a simple test class for running some integration tests against a JWT based authentication endpoint that I was working on at [REDACTED].
+This repo contains a simple test class for running some integration tests against a JWT based authentication endpoint 
+that I was working.
 
-The test class attempts to access a secured resource on a server that requires authentication (in this case a JWT Authentication token).
+The test class attempts to access a secured resource on a server that requires authentication (in this case a JWT 
+Authentication token).
 
 The authentication scenario is as follows:
 1. Call the authentication endpoint with an organisation ID and access key
@@ -31,7 +33,8 @@ This example was written using the following:
 - REST-assured [here](https://rest-assured.io)
 - AssertJ [here](https://assertj.github.io/doc/)
 
-This test harness is built and tested for local use and is not intended to be run in production. However, I have run it against the authentication endpoint in the QA environment at [REDACTED].
+This test harness is built and tested for local use and is not intended to be run in production. However, I have run it
+against the authentication endpoint in the QA environment.
 
 ### Usage
 To run the test class against the authentication endpoint, open a terminal window and enter the commands:
@@ -43,14 +46,16 @@ mvn test
 ```
 
 ### Configuration:
-In order to run the tests you must define the following environment variables either from the command line or your IDEs run configuration:
+In order to run the tests you must define the following environment variables either from the command line or your IDEs
+run configuration:
 
-| Environment Variable | Description                                           |
-|----------------------|-------------------------------------------------------|
-| ORGANISATION_UID     | Your organisation uid from the [REDACTED] application |
-| ACCESS_KEY           | Your access key from the [REDACTED] application       |
+| Environment Variable | Description                                |
+|----------------------|--------------------------------------------|
+| ORGANISATION_UID     | Your organisation uid from the application |
+| ACCESS_KEY           | Your access key from the application       |
 
-To obtain the above values you must log into your account and access your profile settings on the [REDACTED] application.
+To obtain the above values you must log into your account and access your profile settings on the application.
 
-I could have defined these variables in a property file, but chose to use environment variables since there were only two of them.
+I could have defined these variables in a property file, but chose to use environment variables since there were only
+two of them.
 
