@@ -9,6 +9,8 @@ import org.apache.http.HttpStatus;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -28,6 +30,8 @@ public class JwtTokenTests {
     private static RequestSpecification requestSpec;
     private static String organisationUid;
     private static String accessKey;
+    private static String secretKey;
+    private static final long TOKEN_VALIDITY_DURATION_IN_SECONDS = 1800L;
     private static final String BASE_URI = "https://localhost:8080";
     private static final String EXPIRED_ACCESS_TOKEN = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJkYXZpZHNtaWxlcyIsIm9yZyI6ImI0M2U4Nzk0LTkwNmMtNGVhMS1iYmY3LTk4YTE0ZGE4ZWE0NCIsInJvbGVzIjpbIkFETUlOIl0sImV4cCI6MTU3MTA3MjE0MywiaWF0IjoxNTcxMDcwMzQzfQ.REgcF6EiVLlsHjzAWHH9uJolWCx6I4cMqHSfGO-xkjw";
     private static final String ORGANISATION_UID_MUST_NOT_BE_BLANK = "'organisation_uid': must not be blank.";
@@ -51,6 +55,11 @@ public class JwtTokenTests {
             throw new IllegalArgumentException("Access key has not been defined");
         }
 
+        secretKey = System.getenv("SECRET_KEY");
+        if (secretKey == null) {
+            throw new IllegalArgumentException("Secret key has not been defined");
+        }
+
         requestSpec = new RequestSpecBuilder()
                 .setContentType(ContentType.JSON)
                 .setBaseUri(BASE_URI)
@@ -60,8 +69,7 @@ public class JwtTokenTests {
     }
 
     @Test
-    public void givenValidCredentials_whenPosted_thenSuccess()
-    {
+    public void givenValidCredentials_whenPosted_thenSuccess() throws NoSuchAlgorithmException, InvalidKeyException {
         // Given
         Map<String, String> params = createJwtBody(organisationUid, accessKey);
 
@@ -100,13 +108,17 @@ public class JwtTokenTests {
         assertThat(payloadJson.getString("org")).isEqualTo(organisationUid);
         assertThat(payloadJson.getString("roles")).isEqualTo("[ADMIN]");
 
-        // Assert on the expected Unix timestamps "exp" and "iat"
+        // Assert on the expiry timestamp value
         // "exp" - Expires - The Unix timestamp of when the token expires
         // "iat" - Issued At - The Unix timestamp of when the token was issued
-        // TODO skipped for now - should mask the values
+        long expires = Long.parseLong(payloadJson.getString("exp"));
+        long issuedAt = Long.parseLong(payloadJson.getString("iat"));
+        assertThat(expires).isEqualTo(issuedAt + TOKEN_VALIDITY_DURATION_IN_SECONDS);
 
-        // Assert on the Signature Verification (HMACSHA256)
-        // TODO Skipped for now - should verify this
+        // Assert on the Signature Verification
+        String encodedSignature = JWTUtils.calculateHMACSHA256(header + "." + payload, secretKey);
+        String expectedSignature = new String(Base64.decodeBase64(encodedSignature));
+        assertThat(signature).isEqualTo(expectedSignature);
     }
 
     @Test
