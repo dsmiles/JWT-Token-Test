@@ -49,13 +49,15 @@ mvn test
 In order to run the tests you must define the following environment variables either from the command line or your IDEs
 run configuration:
 
-| Environment Variable | Description                                |
-|----------------------|--------------------------------------------|
-| ORGANISATION_UID     | Your organisation uid from the application |
-| ACCESS_KEY           | Your access key from the application       |
+| Environment Variable | Description                                   |
+|----------------------|-----------------------------------------------|
+| ORGANISATION_UID     | Your organisation uid from the application    |
+| ACCESS_KEY           | Your access key from the application UI       |
+| SECRET_KEY           | Your secret key from the application database |
 
-To obtain the above values you must log into your account and access your profile settings on the application.
+To obtain the values you must log into your account and access your profile settings on the application UI. The secret
+key must be retrieved from the database.
 
 I could have defined these variables in a property file, but chose to use environment variables since there were only
-two of them.
+three of them.
 
